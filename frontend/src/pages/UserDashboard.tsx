@@ -4,7 +4,9 @@ import {
   Building2,
   CalendarDays,
   ChevronRight,
+  Check,
   ClipboardCheck,
+  Copy,
   FileText,
   FileUp,
   Home,
@@ -95,6 +97,7 @@ const UserDashboard = () => {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [resaleForm, setResaleForm] = useState(emptyResaleForm);
   const [leaseForm, setLeaseForm] = useState(emptyLeaseForm);
+  const [copiedWallet, setCopiedWallet] = useState("");
 
   const wallet = sessionUser?.walletAddress || sessionUser?.wallet || "";
   const token = getAuthToken(sessionUser);
@@ -385,6 +388,23 @@ const UserDashboard = () => {
     setPhotoFile(event.target.files?.[0] ?? null);
   };
 
+  const copyWallet = useCallback(async (value: string) => {
+    const walletValue = value.trim();
+    if (!walletValue || typeof navigator === "undefined" || !navigator.clipboard) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(walletValue);
+      setCopiedWallet(walletValue);
+      window.setTimeout(() => {
+        setCopiedWallet((current) => (current === walletValue ? "" : current));
+      }, 1200);
+    } catch {
+      setMessage("Unable to copy wallet address from this browser session.");
+    }
+  }, []);
+
   const logout = () => {
     clearSessionUser();
     navigate("/login");
@@ -459,7 +479,9 @@ const UserDashboard = () => {
               <span className="rounded-sm border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">Active</span>
             </div>
             <div className="mt-3 grid gap-2 text-sm">
-              <StatusLine icon={Wallet} label="Wallet" value={shortWallet(wallet) || "Not connected"} />
+              <StatusLine icon={Wallet} label="Wallet" value={shortWallet(wallet) || "Not connected"}>
+                <WalletCopyButton wallet={wallet} copied={copiedWallet === wallet.trim()} label="Copy wallet address" onCopy={copyWallet} />
+              </StatusLine>
               <StatusLine icon={FileText} label="Citizen ID" value={sessionUser?.idNumberDisplay || "NDI verified"} />
               <StatusLine icon={ShieldCheck} label="Service level" value="Blockchain registry enabled" />
             </div>
@@ -824,7 +846,13 @@ const UserDashboard = () => {
                       </div>
                       <div className="mt-4 flex items-center gap-2 break-all border-t border-border pt-4 text-xs text-muted-foreground">
                         <Wallet size={14} className="text-gold" />
-                        Seller wallet {shortWallet(selectedListing.sellerWallet)}
+                        <span>Seller wallet {shortWallet(selectedListing.sellerWallet)}</span>
+                        <WalletCopyButton
+                          wallet={selectedListing.sellerWallet}
+                          copied={copiedWallet === selectedListing.sellerWallet.trim()}
+                          label="Copy seller wallet address"
+                          onCopy={copyWallet}
+                        />
                       </div>
                     </div>
                   </div>
@@ -935,8 +963,26 @@ const UserDashboard = () => {
                           <Metric label="Rent" value={formatNu(lease.rentAmount)} />
                           <Metric label="Chain lease" value={lease.chainLeaseId || "pending"} />
                         </div>
-                        <div className="mt-3 break-all text-xs text-muted-foreground">
-                          {shortWallet(lease.lessorWallet)} to {shortWallet(lease.lesseeWallet)}
+                        <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                          <span className="inline-flex min-w-0 items-center gap-1 break-all">
+                            {shortWallet(lease.lessorWallet)}
+                            <WalletCopyButton
+                              wallet={lease.lessorWallet}
+                              copied={copiedWallet === lease.lessorWallet.trim()}
+                              label="Copy lessor wallet address"
+                              onCopy={copyWallet}
+                            />
+                          </span>
+                          <span>to</span>
+                          <span className="inline-flex min-w-0 items-center gap-1 break-all">
+                            {shortWallet(lease.lesseeWallet)}
+                            <WalletCopyButton
+                              wallet={lease.lesseeWallet}
+                              copied={copiedWallet === lease.lesseeWallet.trim()}
+                              label="Copy lessee wallet address"
+                              onCopy={copyWallet}
+                            />
+                          </span>
                         </div>
                       </div>
                     ))
@@ -993,15 +1039,48 @@ const PanelIntro = ({ icon: Icon, title, description }: { icon: LucideIcon; titl
   </div>
 );
 
-const StatusLine = ({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) => (
+const StatusLine = ({ icon: Icon, label, value, children }: { icon: LucideIcon; label: string; value: string; children?: ReactNode }) => (
   <div className="flex items-start gap-2">
     <Icon size={15} className="mt-0.5 shrink-0 text-gold" />
     <div className="min-w-0">
       <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className="truncate text-sm font-medium text-primary">{value}</div>
+      <div className="flex min-w-0 items-center gap-1.5">
+        <span className="truncate text-sm font-medium text-primary">{value}</span>
+        {children}
+      </div>
     </div>
   </div>
 );
+
+const WalletCopyButton = ({
+  wallet,
+  copied,
+  label,
+  onCopy,
+}: {
+  wallet: string;
+  copied: boolean;
+  label: string;
+  onCopy: (wallet: string) => Promise<void>;
+}) => {
+  if (!wallet.trim()) {
+    return null;
+  }
+
+  const Icon = copied ? Check : Copy;
+
+  return (
+    <button
+      type="button"
+      onClick={() => void onCopy(wallet)}
+      title={copied ? "Copied" : label}
+      aria-label={label}
+      className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-sm border border-primary/15 bg-white text-primary transition-colors hover:border-gold/70 hover:text-gold"
+    >
+      <Icon size={13} />
+    </button>
+  );
+};
 
 const StatCard = ({ title, value, description, icon: Icon }: { title: string; value: string; description: string; icon: LucideIcon }) => (
   <div className="border border-border bg-white p-4 shadow-sm">

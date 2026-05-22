@@ -1,5 +1,5 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
-import { ADMIN_DEMO_MODE, ADMIN_HOLDER_DIDS, ADMIN_ID_NUMBER_HASHES, ADMIN_WALLET_ADDRESSES, roleSet, seedWallets, walletAddressRegex } from "../config/constants.mjs";
+import { ADMIN_DEMO_MODE, ADMIN_HOLDER_DIDS, ADMIN_ID_NUMBER_HASHES, ADMIN_WALLET_ADDRESSES, roleSet, walletAddressRegex } from "../config/constants.mjs";
 
 export const now = () => new Date().toISOString();
 export const asTokenId = (value) => String(value ?? "").trim();
@@ -20,7 +20,7 @@ export const isAdminNdiIdentity = ({ holderDid = "", idNumberDisplay = "", walle
   return holderMatch || idHashMatch || walletMatch;
 };
 export const seededVerifiedWallets = () =>
-  Object.fromEntries([...Object.values(seedWallets), ...ADMIN_WALLET_ADDRESSES].map((wallet) => [normalizeWallet(wallet), true]));
+  Object.fromEntries(ADMIN_WALLET_ADDRESSES.map((wallet) => [normalizeWallet(wallet), true]));
 export const sha256Hex = (value) => `0x${createHash("sha256").update(String(value)).digest("hex")}`;
 export const randomHex = (bytes = 32) => `0x${randomBytes(bytes).toString("hex")}`;
 export const randomNonce = (bytes = 16) => randomBytes(bytes).toString("hex");

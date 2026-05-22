@@ -19,6 +19,15 @@ const collectionNames = {
   verifiedWallets: "verifiedWallets",
 };
 
+const legacySeedWallets = [
+  "0xa110000000000000000000000000000000000001",
+  "0xb220000000000000000000000000000000000002",
+  "0xc330000000000000000000000000000000000003",
+].map(normalizeWallet);
+const legacySeedPropertyIds = ["prop-mountain-villa", "prop-commercial-office", "prop-prime-land"];
+const legacySeedListingIds = ["LST-1001", "LST-1002", "LST-1003", "LST-1004"];
+const legacySeedTokenIds = ["1001", "1002", "1003"];
+
 let clientPromise = null;
 let mongoReadyPromise = null;
 const parseBoolean = (value = "") => ["1", "true", "yes", "on"].includes(String(value).trim().toLowerCase());
@@ -139,6 +148,39 @@ const replaceCollection = async (database, collectionName, docs, options = {}) =
   }
 };
 
+const removeLegacySeedData = async (database) => {
+  await Promise.all([
+    database.collection(collectionNames.users).deleteMany({
+      $or: [{ holderDid: "did:key:demo-seller" }, { walletProvider: "seed" }, { walletAddress: { $in: legacySeedWallets } }],
+    }),
+    database.collection(collectionNames.properties).deleteMany({
+      $or: [
+        { _id: { $in: legacySeedPropertyIds } },
+        { docStorageRef: /^seed:\/\// },
+        { ownerWallet: { $in: legacySeedWallets }, tokenId: { $in: legacySeedTokenIds } },
+      ],
+    }),
+    database.collection(collectionNames.listings).deleteMany({
+      $or: [{ id: { $in: legacySeedListingIds } }, { sellerWallet: { $in: legacySeedWallets }, tokenId: { $in: legacySeedTokenIds } }],
+    }),
+    database.collection(collectionNames.balances).deleteMany({ wallet: { $in: legacySeedWallets } }),
+    database.collection(collectionNames.approvals).deleteMany({ ownerWallet: { $in: legacySeedWallets } }),
+    database.collection(collectionNames.transferEvents).deleteMany({
+      $or: [{ id: /^(EVT-MINT-100[1-3]|EVT-SEED-)/ }, { tokenId: { $in: legacySeedTokenIds }, toWallet: { $in: legacySeedWallets } }],
+    }),
+    database.collection(collectionNames.auditLog).deleteMany({ $or: [{ id: "AUD-SEED-1" }, { action: "PLATFORM_SEEDED", target: "demo" }] }),
+    database.collection(collectionNames.verifiedWallets).deleteMany({ wallet: { $in: legacySeedWallets } }),
+  ]);
+
+  const [state, remainingProperties] = await Promise.all([
+    database.collection(collectionNames.meta).findOne({ _id: "state" }),
+    database.collection(collectionNames.properties).countDocuments({}),
+  ]);
+  if (remainingProperties === 0 && Number(state?.nextTokenId) === 1004) {
+    await database.collection(collectionNames.meta).updateOne({ _id: "state" }, { $set: { nextTokenId: 1, updatedAt: new Date() } });
+  }
+};
+
 const writeMongoDb = async (db) => {
   const database = await mongoDb();
 
@@ -147,7 +189,7 @@ const writeMongoDb = async (db) => {
     {
       _id: "state",
       version: db.version ?? 2,
-      nextTokenId: db.nextTokenId ?? 1004,
+      nextTokenId: db.nextTokenId ?? 1,
       updatedAt: new Date(),
     },
     { upsert: true },
@@ -171,6 +213,8 @@ const writeMongoDb = async (db) => {
 
 const initializeMongoDb = async () => {
   const database = await mongoDb();
+  await removeLegacySeedData(database);
+
   await Promise.all([
     database.collection(collectionNames.users).createIndex({ holderDid: 1 }),
     database.collection(collectionNames.users).createIndex({ privyWalletExternalId: 1 }),
@@ -297,7 +341,7 @@ export const readDb = async () => {
 
   return normalizeDb({
     version: meta?.version ?? 2,
-    nextTokenId: meta?.nextTokenId ?? 1004,
+    nextTokenId: meta?.nextTokenId ?? 1,
     users,
     pendingSessions,
     walletChallenges,

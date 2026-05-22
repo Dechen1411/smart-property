@@ -88,9 +88,3 @@ export const ADMIN_WALLET_ADDRESSES = parseWalletList(process.env.ADMIN_WALLET_A
 export const ADMIN_HOLDER_DIDS = parseCsvList(process.env.ADMIN_HOLDER_DIDS || "");
 export const ADMIN_ID_NUMBER_HASHES = parseHashList(process.env.ADMIN_ID_NUMBER_HASHES || "");
 export const roleSet = new Set(["user", "admin"]);
-
-export const seedWallets = {
-  sellerA: "0xa110000000000000000000000000000000000001",
-  sellerB: "0xb220000000000000000000000000000000000002",
-  buyer: "0xc330000000000000000000000000000000000003",
-};
