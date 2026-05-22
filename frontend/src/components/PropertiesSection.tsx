@@ -8,12 +8,6 @@ import property4 from "@/assets/property4.jpg";
 import property5 from "@/assets/property5.jpg";
 import property6 from "@/assets/property6.jpg";
 
-const fallbackProperties = [
-  { image: property1, title: "Apartment Registry Record", price: "Nu. 45,00,000", location: "Motithang, Thimphu", verification: "Approved record", documents: "12 documents hash-verified", shares: "2,500 shares available", history: "4 registry events", wallet: "0x8F2A1d3B4c5E6F7890123456789aBcDeF0123456", searchText: "apartment registry record motithang thimphu approved listing" },
-  { image: property2, title: "Residential Share Record", price: "Nu. 850 / share", location: "Babesa, Thimphu", verification: "Approved record", documents: "Document hash anchored", shares: "2,500 shares available", history: "3 holder events", wallet: "0xa110000000000000000000000000000000000001", searchText: "residential share record babesa thimphu property shares partial listing" },
-  { image: property3, title: "Urban Property Record", price: "Nu. 1,20,00,000", location: "Changlimithang, Thimphu", verification: "Approved record", documents: "11 documents hash-verified", shares: "10,000 full-property shares", history: "5 registry events", wallet: "0x8F2A1d3B4c5E6F7890123456789aBcDeF0123456", searchText: "urban property record changlimithang thimphu full property listing" },
-];
-
 const propertyImages = [property1, property2, property3, property4, property5, property6];
 
 type CardProperty = {
@@ -60,22 +54,26 @@ const mapListing = (listing: ListingRecord, index: number): CardProperty => ({
 });
 
 const PropertiesSection = () => {
-  const [properties, setProperties] = useState<CardProperty[]>(fallbackProperties);
+  const [properties, setProperties] = useState<CardProperty[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
   const loadProperties = async () => {
     try {
       const data = await apiRequest<{ listings?: ListingRecord[] }>("/api/listings");
 
       if (!data.listings?.length) {
-        setProperties(fallbackProperties);
+        setProperties([]);
+        setLoadError("");
         return;
       }
 
       setProperties(data.listings.slice(0, 6).map(mapListing));
+      setLoadError("");
     } catch {
-      setProperties(fallbackProperties);
+      setProperties([]);
+      setLoadError("Registry records are unavailable right now.");
     } finally {
       setIsLoading(false);
     }
@@ -122,6 +120,12 @@ const PropertiesSection = () => {
         {isLoading && (
           <div className="mb-8 border border-border bg-white px-4 py-3 text-sm text-muted-foreground">
             Loading verified property records from the backend registry...
+          </div>
+        )}
+
+        {!isLoading && loadError && (
+          <div className="mb-8 border border-[#7a1f2f]/20 bg-[#fff7f8] px-4 py-3 text-sm text-[#7a1f2f]">
+            {loadError}
           </div>
         )}
 
@@ -196,6 +200,15 @@ const PropertiesSection = () => {
         {searchQuery && !filteredProperties.length && (
           <div className="mt-8 border border-border bg-white px-4 py-6 text-center text-sm text-muted-foreground">
             No matching property records found.
+          </div>
+        )}
+
+        {!searchQuery && !isLoading && !filteredProperties.length && (
+          <div className="mt-8 border border-dashed border-primary/25 bg-white px-4 py-8 text-center">
+            <h3 className="text-lg font-bold text-primary">No verified property records yet</h3>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              Approved listings from MongoDB will appear here after officer review and minting.
+            </p>
           </div>
         )}
       </div>
